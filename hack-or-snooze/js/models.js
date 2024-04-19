@@ -35,9 +35,10 @@ class Story {
    *
    */
 
-  getHostName() {
-    // FIXME: complete this function!
-    return "hostname.com";
+  getHostName() { // we will call story.getHostName() on a story
+    const storyURL = this.url;
+    const hostName = storyURL.split("://");
+    return hostName[1];
   }
 
 }

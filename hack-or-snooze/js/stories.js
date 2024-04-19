@@ -78,17 +78,17 @@ export function handleFavoriteClick(evt) { // TODO: REMEMBER WE ADDED THIS
   }
 }
 
-function favoriteIconToggle(iconElementTarget, storyId, iconState) {
+async function favoriteIconToggle(iconElementTarget, storyId, iconState) {
   console.log("favoriteIconToggle", storyId, iconState);
 
   // check whether iconState is true; remove favorite if true; add if false
   switch (iconState === "true") {
     case true:
-      currentUser.removeFavorite(currentUser, storyId);
+      await currentUser.removeFavorite(currentUser, storyId);
       displayNewList(); // TODO: check if we should refresh page to reload list?
       break;
     case false:
-      currentUser.addFavorite(currentUser, storyId);
+      await currentUser.addFavorite(currentUser, storyId);
       displayNewList();// TODO: check if we should  refresh page to reload list?
       break;
   }
@@ -164,9 +164,10 @@ export async function addNewStoryOnSubmit(evt) { // TODO: REMEMBER WE ADDED THIS
     url: formattedURL
   };
 
-  await currStoryList.addStory(currentUser, newStoryUserInput); //FIXME: addStory is an async function, we need that to finish first
-  // NOTES: JS will call addStory, which the server does its thing, but JS has already moved on without await
-  // with await, we told JS to wait for this response before calling displayNewList()
+  await currStoryList.addStory(currentUser, newStoryUserInput);
+  /**NOTES: JS will call addStory, which the server does its thing, but JS has already moved on without await
+  * with await, we told JS to wait for this response before calling displayNewList()
+  */
   displayNewList();
 }
 
@@ -178,7 +179,7 @@ $submitStoryForm.addEventListener("submit", addNewStoryOnSubmit);
  * function again, with the new list of stories
  */
 
-function displayNewList() { // TODO: REMEMBER WE ADDED THiS FIXME: this is not getting the latest data... :(
+function displayNewList() { // TODO: REMEMBER WE ADDED THiS
   console.log("displayNewList");
   hidePageComponents();
   fetchAndShowStoriesOnStart();
