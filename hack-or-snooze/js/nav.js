@@ -5,7 +5,9 @@
 import {
   $navAllStories,
   $navSubmitStory,
+  $navFavorites,
   $submitStoryForm,
+  $favoritedStoriesList,
   $navLogin,
   $navLogOut,
   $navUserProfile,
@@ -53,7 +55,7 @@ export function updateNavOnLogin() {
   $navUserProfile.querySelector("a").innerHTML = `${currentUser.username}`;
 }
 
-/** Show submit story form when user clicks on "submit" */
+/** Show submit story form when user clicks on "submit" nav */
 
 export function navSubmitClick(evt) {
   console.debug("navSubmitClick", evt);
@@ -64,3 +66,17 @@ export function navSubmitClick(evt) {
 }
 
 $navSubmitStory.addEventListener("click", navSubmitClick);
+
+
+/** Show favorite stories form when user clicks on "Favorites" nav */
+
+export function navFavoritesClick(evt) {
+  console.log("navFavoritesClick", evt);
+  evt.preventDefault();
+  hidePageComponents();
+  putStoriesOnPage(currentUser.favorites, $favoritedStoriesList);
+
+  $favoritedStoriesList.classList.remove("d-none");
+}
+
+$navFavorites.addEventListener("click", navFavoritesClick);

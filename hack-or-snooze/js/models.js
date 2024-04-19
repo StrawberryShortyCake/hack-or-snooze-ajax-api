@@ -35,10 +35,12 @@ class Story {
    *
    */
 
-  getHostName() { // we will call story.getHostName() on a story
-    const storyURL = this.url;
-    const hostName = storyURL.split("://");
-    return hostName[1];
+  getHostName() {
+
+    const storyURL = new URL(this.url);
+    const hostName = storyURL.hostname;
+
+    return hostName;
   }
 
 }
@@ -63,8 +65,8 @@ class StoryList {
   static async getStories() {
     // Note presence of `static` keyword: this indicates that getStories is
     //  **not** an instance method. Rather, it is a method that is called on the
-    //  class directly. Why doesn't it make sense for getStories to be an
-    //  instance method?
+    //  class directly. We don't really need the instance,
+    // but we keep it in the class for the organization
 
     // query the /stories endpoint (no auth required)
     const response = await fetch(`${BASE_URL}/stories`);
@@ -77,8 +79,8 @@ class StoryList {
     return new StoryList(stories);
   }
 
-  /** Send story data to API, make a Story instance, and add it as the first
-   * item to this StoryList.
+  /** Send story data to API, make a Story instance, update the memory storylist,
+   *  and return the new story instance
    *
    * - user - the current instance of User who will post the story
    * - obj of {title, author, url}
@@ -86,15 +88,15 @@ class StoryList {
    * Returns the new Story instance
    */
 
-  async addStory(user, newStory) {
+  async addStory(user, newStoryInfo) {
 
     // put the user and newStory parameter into the accepted request format
     const postRequestBody = {
       "token": user.loginToken,
       "story": {
-        "author": newStory.author,
-        "title": newStory.title,
-        "url": newStory.url
+        "author": newStoryInfo.author,
+        "title": newStoryInfo.title,
+        "url": newStoryInfo.url
       }
     };
 
@@ -122,7 +124,11 @@ class StoryList {
       createdAt: responseData.story.createdAt
     };
 
-    return new Story(storyData);
+    const newStory = new Story(storyData);
+    this.stories.unshift(newStory);
+    return newStory;
+    // NOTES: we have updated the server story list, but we don't have the new story list in memory
+    // also check what class this is defined on for the this context
   }
 }
 
@@ -185,8 +191,6 @@ class User {
   }
 
   /** Login in user with API, make User instance & return it.
-
-
      * - username: an existing user's username
      * - password: an existing user's password
      */
@@ -238,17 +242,18 @@ class User {
   }
 
   /**
-   * Given the current user info and an user selected story, will call
-   * the Favorites endpoint to create a new item in the user's favorite
-   * stories array
+   * Given the current user info and an user selected story,
+   * will call the API to add the story to the favorited array in database,
+   * and then update the memory favorites array TODO: need to update DOM in Stories.js
    */
   async addFavorite(user, favoritedStoryId) {
     console.log("add favorite");
     const username = user.username;
     const postRequestBody = { "token": user.loginToken };
 
-    // making a POST request, will throw error if it is rejected by server
-    fetch(
+    // making a POST request, will throw error if it is rejected by server.
+    // Otherwise, will parse the response JSON to return the new user
+    const responseData = await fetch(
       `${BASE_URL}/users/${username}/favorites/${favoritedStoryId}`,
       {
         method: "POST",
@@ -263,13 +268,17 @@ class User {
       .catch((error) => {
         console.log(error);
       });
+
+    return responseData;
+
+    // TODO: verify if this is good: option 1 return the new user object, find fave array, and prepend item at length
   }
 
   /**
-   * Given the current user info and an user selected story, will call
-   * the Favorites endpoint to remove the ite from the user's favorite
-   * stories array
-   */
+    * Given the current user info and an user selected story,
+    * will call the API to remove it from the favorited array in the database,
+    * and then update the memory favorites array TODO: need to update DOM in Stories.js
+    */
 
   async removeFavorite(user, favoritedStoryId) {
     console.log("delete favorite");
@@ -277,7 +286,7 @@ class User {
     const postRequestBody = { "token": user.loginToken };
 
     // making a POST request, will throw error if it is rejected by server
-    fetch(
+    const responseData = fetch(
       `${BASE_URL}/users/${username}/favorites/${favoritedStoryId}`,
       {
         method: "DELETE",
@@ -292,6 +301,7 @@ class User {
       .catch((error) => {
         console.log(error);
       });
+    return responseData;
   }
 }
 

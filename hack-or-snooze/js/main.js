@@ -2,7 +2,8 @@ import {
   $loginForm,
   $signupForm,
   $allStoriesList,
-  $submitStoryForm, // TODO: ADDED THIS
+  $submitStoryForm,
+  $favoritedStoriesList
 } from "./dom";
 
 import {
@@ -25,7 +26,8 @@ export function hidePageComponents() {
     $allStoriesList,
     $loginForm,
     $signupForm,
-    $submitStoryForm // TODO: ADDED THIS
+    $submitStoryForm,
+    $favoritedStoriesList
   ];
   for (const $c of components) $c.classList.add("d-none");
 }

@@ -21,20 +21,19 @@ export let currStoryList;
  * Returns DOM object for the story.
  */
 
-export function generateStoryMarkup(story) { // TODO: let's reuse this for Faves
+export function generateStoryMarkup(story) {
   // console.debug("generateStoryMarkup", story);
 
   const hostName = story.getHostName();
 
   // if a user is logged in, show favorite/not-favorite star
-  const showStar = getFavorites().includes(story.storyId); //Boolean(currentUser);
+  const showStar = checkFavoriteState(story.storyId); //Boolean(currentUser);
   const $li = document.createElement("li");
 
   $li.id = story.storyId;
-  $li.classList.add("Story", "mt-2"); // TODO: REMEMBER WE ADDED STARS
+  $li.classList.add("Story", "mt-2");
   $li.innerHTML = `
-      <i class="Favorite-icon bi ${showStar ? "bi-star-fill" : "bi-star"}"
-      data-icon-active=${showStar}></i>
+      <i class="Favorite-icon bi ${showStar ? "bi-star-fill" : "bi-star"}"></i>
       <a href="${story.url}" target="a_blank" class="Story-link">
         ${story.title}
       </a>
@@ -47,52 +46,57 @@ export function generateStoryMarkup(story) { // TODO: let's reuse this for Faves
   return $li;
 }
 
-// when called, will return the IDs for user's favorited stories in an array
-function getFavorites() {
-  // console.log("getFavorites", currentUser.favorites);
-  return currentUser.favorites.map((story) => {
+/** Given a story object, it will retrieve the user's favorites list and check
+ * whether the specified story is in the array
+ */
+function checkFavoriteState(newFavoritedStoryId) {
+  const favoritesList = currentUser.favorites.map((story) => {
     return story.storyId;
   });
+  return favoritesList.includes(newFavoritedStoryId);
 }
 
 /**
- * Called when a user clicks on the area of the Stories list.
- * Will toggle the favorite star icon to fill / unfill if the user clicked
- * on the star icon.
+ * Will check whether the user click is on the favorite icon and then
+ * call the icon toggle function
  */
-export function handleFavoriteClick(evt) { // TODO: REMEMBER WE ADDED THIS
-  console.log("handleFavoriteClick");
-  getFavorites();
+export function handleFavoriteClick(evt) {
+  // console.log("handleFavoriteClick");
   const iconElementTarget = evt.target;
 
-  /**  if the user clicked the favorite icon, get the icon element,
-   * the story ID associated, change the icon toggle state, and call
-   * the iconToggle function with these arguments.
-  */
   if (iconElementTarget.closest(".Favorite-icon")) {
-    console.log("user favorited article");
     const storyId = evt.target.closest(".Story").id;
-    const iconState = iconElementTarget.closest(".Favorite-icon")
-      .getAttribute("data-icon-active");
-    favoriteIconToggle(iconElementTarget, storyId, iconState);
+    favoriteIconToggle(iconElementTarget, storyId);
   }
 }
 
-async function favoriteIconToggle(iconElementTarget, storyId, iconState) {
-  console.log("favoriteIconToggle", storyId, iconState);
+/**
+ * Given the icon element and the storyId, this will call the backend
+ * to add / remove a story from the favorite list, update the in-memory
+ * favorites list, and toggle the favorite icon to fill / unfill
+ */
+async function favoriteIconToggle(iconElementTarget, storyId) {
+  console.log("favoriteIconToggle", storyId);
 
-  // check whether iconState is true; remove favorite if true; add if false
-  switch (iconState === "true") {
-    case true:
-      await currentUser.removeFavorite(currentUser, storyId);
-      displayNewList(); // TODO: check if we should refresh page to reload list?
-      break;
-    case false:
-      await currentUser.addFavorite(currentUser, storyId);
-      displayNewList();// TODO: check if we should  refresh page to reload list?
-      break;
+  if (checkFavoriteState(storyId) === true) {
+    const newFavorites = await currentUser.removeFavorite(currentUser, storyId);
+
+    currentUser.favorites = newFavorites.user.favorites;
+
+    iconElementTarget.classList.remove("bi-star-fill");
+    iconElementTarget.classList.add("bi-star");
+
+  } else if (checkFavoriteState(storyId) === false) {
+    const newFavorites = await currentUser.addFavorite(currentUser, storyId);
+
+    currentUser.favorites = newFavorites.user.favorites;
+
+    iconElementTarget.classList.remove("bi-star");
+    iconElementTarget.classList.add("bi-star-fill");
+
   }
 }
+
 
 /******************************************************************************
  * List all stories
@@ -100,13 +104,13 @@ async function favoriteIconToggle(iconElementTarget, storyId, iconState) {
 
 /** For in-memory list of stories, generates markup & put on page. */
 
-export function putStoriesOnPage(list = currStoryList,
+export function putStoriesOnPage(list = currStoryList.stories,
   displayElement = $allStoriesList) { // TODO: consider how we'd reuse this for faveeeee...
   console.debug("putStoriesOnPage", list);
 
   displayElement.innerHTML = "";
 
-  for (const story of list.stories) { // FIXME: need to pass in an object with key stories
+  for (const story of list) {
     const $story = generateStoryMarkup(story);
     displayElement.append($story);
   }
@@ -135,8 +139,8 @@ export async function fetchAndShowStoriesOnStart() {
 
 /**
  * On New Story Form submission, this will retrieve the data from the form
- * and the currentUser data, and call the .addStory method
- * on the currStoryList object.
+ * and the currentUser data, call the .addStory method
+ * on the currStoryList object, and call displayNewStory() function.
  */
 
 export async function addNewStoryOnSubmit(evt) { // TODO: REMEMBER WE ADDED THIS
@@ -151,7 +155,7 @@ export async function addNewStoryOnSubmit(evt) { // TODO: REMEMBER WE ADDED THIS
   const userSubmittedTitle = qs("#NewStoryForm-title").value;
   const userSubmittedURL = qs("#NewStoryForm-url").value;
 
-  // check and correctly format user-inputted URL to be acceptable to API
+  // check and correctly format user-inputted URL to be acceptable to API // FIXME: require user to put it in correct format instead
   const URIprefix = 'http://';
   const formattedURL =
     (userSubmittedURL.substr(0, URIprefix.length) !== URIprefix) ?
@@ -164,25 +168,27 @@ export async function addNewStoryOnSubmit(evt) { // TODO: REMEMBER WE ADDED THIS
     url: formattedURL
   };
 
-  await currStoryList.addStory(currentUser, newStoryUserInput);
+  const newStory = await currStoryList.addStory(currentUser, newStoryUserInput);
+
   /**NOTES: JS will call addStory, which the server does its thing, but JS has already moved on without await
   * with await, we told JS to wait for this response before calling displayNewList()
   */
-  displayNewList();
+  hidePageComponents();
+  $allStoriesList.classList.remove("d-none"); // NOTES: we'd want to reset state on submit
+  displayNewStory(newStory);
 }
 
 $submitStoryForm.addEventListener("submit", addNewStoryOnSubmit);
 
 /**
  * This is automatically called after the addStory method is called.
- * Will hide the page components and call the fetchAndShowStoriesOnStart()
- * function again, with the new list of stories
+ * Will hide the page components, prepend the new story, and show updated list.
  */
 
-function displayNewList() { // TODO: REMEMBER WE ADDED THiS
-  console.log("displayNewList");
-  hidePageComponents();
-  fetchAndShowStoriesOnStart();
+function displayNewStory(newStory) { // TODO: REMEMBER WE ADDED THiS
+  console.log("displayNewStory", newStory);
+  $allStoriesList.prepend(generateStoryMarkup(newStory));
+
 }
 
 
